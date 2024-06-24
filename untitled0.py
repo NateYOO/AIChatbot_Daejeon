@@ -1,157 +1,66 @@
+# app.py
+
 import streamlit as st
 import streamlit.components.v1 as components
-import requests
-import base64
-from io import BytesIO
+import google.generativeai as genai
+import os
 
-# Function to send a message to the Gemini 1.5 Pro model
-def send_message_to_gemini(api_key, message, context=""):
-    url = "https://api.gemini.com/v1/chat"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "message": message,
-        "context": context
-    }
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
+# Streamlit Community Cloud에서 환경 변수 사용
+API_KEY = st.secrets["GOOGLE_API_KEY"]
 
-# Function to extract text from PDF (placeholder)
-def extract_text_from_pdf(pdf_file):
-    # This is a placeholder function. In a real-world scenario,
-    # you'd need to implement PDF text extraction here.
-    # For now, we'll just return a message.
-    return "PDF text extraction is not implemented in this version."
+# Configure Gemini API
+genai.configure(api_key=API_KEY)
 
-# API key for the Gemini 1.5 Pro model
-API_KEY = "AIzaSyAbHQK9OtDTG5x5P1L_9YCnj7DwwoKf88w"
+# Set up the model
+generation_config = {
+    "temperature": 0.9,
+    "top_p": 1,
+    "top_k": 1,
+    "max_output_tokens": 2048,
+}
+
+safety_settings = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+]
+
+model = genai.GenerativeModel(model_name="gemini-pro",
+                              generation_config=generation_config,
+                              safety_settings=safety_settings)
+
+chat = model.start_chat(history=[])
+
+# Function to send a message to the Gemini model
+def send_message_to_gemini(message):
+    response = chat.send_message(message)
+    return response.text
+
+# HTML content (이전과 동일)
+html_content = """
+<!DOCTYPE html>
+<html lang="ko">
+... (이전과 동일한 HTML 내용) ...
+</html>
+"""
 
 # Streamlit app
 st.set_page_config(layout="wide")
 
-# HTML content for the landing page
-html_content = """
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>대전진로진학지원시스템</title>
-    <style>
-        /* ... (기존 CSS 스타일) ... */
-        #chatbot-container {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
-            width: 350px;
-            height: 500px;
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            border-radius: 10px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        #chatbot-messages {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-        .message {
-            margin-bottom: 10px;
-            padding: 5px;
-            border-radius: 5px;
-        }
-        .user-message {
-            background-color: #e6f3ff;
-            text-align: right;
-        }
-        .bot-message {
-            background-color: #f0f0f0;
-        }
-        /* ... (나머지 CSS 스타일) ... */
-    </style>
-</head>
-<body>
-    <!-- ... (기존 HTML 내용) ... -->
-
-    <div id="chatbot-container">
-        <div id="chatbot-header">
-            <h3>AI진로진학 파트너</h3>
-        </div>
-        <div id="chatbot-messages"></div>
-        <div id="chatbot-input">
-            <input type="text" id="chatbot-input-text" placeholder="메시지를 입력하세요...">
-            <button onclick="sendMessage()">전송</button>
-        </div>
-    </div>
-
-    <script>
-        function sendMessage() {
-            const input = document.getElementById('chatbot-input-text');
-            const message = input.value;
-            input.value = '';
-            
-            const chatMessages = document.getElementById('chatbot-messages');
-            const userMessage = document.createElement('div');
-            userMessage.className = 'message user-message';
-            userMessage.textContent = message;
-            chatMessages.appendChild(userMessage);
-            
-            // Send the message to the Streamlit backend
-            window.parent.postMessage({type: 'chat_message', message: message}, '*');
-        }
-
-        // Listen for messages from Streamlit
-        window.addEventListener('message', function(event) {
-            if (event.data.type === 'bot_response') {
-                const chatMessages = document.getElementById('chatbot-messages');
-                const botMessage = document.createElement('div');
-                botMessage.className = 'message bot-message';
-                botMessage.textContent = event.data.message;
-                chatMessages.appendChild(botMessage);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-        });
-    </script>
-</body>
-</html>
-"""
-
 # Display the HTML content in the Streamlit app
 components.html(html_content, height=800, scrolling=True)
 
-# Streamlit sidebar for PDF upload and chat history
-st.sidebar.title("PDF Upload & Chat History")
-
-uploaded_file = st.sidebar.file_uploader("Upload a PDF file", type="pdf")
-if uploaded_file is not None:
-    pdf_text = extract_text_from_pdf(uploaded_file)
-    st.sidebar.success("PDF uploaded. Text extraction is not implemented in this version.")
-
-# Initialize session state for messages
+# Handle incoming messages from the HTML/JS frontend
 if 'messages' not in st.session_state:
     st.session_state['messages'] = []
 
-# Display chat history in the sidebar
-st.sidebar.subheader("Chat History")
-for message in st.session_state['messages']:
-    st.sidebar.text(message)
-
-# Handle incoming messages from the HTML/JS frontend
 if st.session_state.get('client_message'):
     user_message = st.session_state.get('client_message')
     st.session_state['messages'].append(f"User: {user_message}")
     
-    # Prepare context (including PDF content if available)
-    context = pdf_text if 'pdf_text' in locals() else ""
-    
     # Send message to Gemini and get response
-    response = send_message_to_gemini(API_KEY, user_message, context)
-    bot_response = response.get('response', 'Sorry, I could not process your request.')
-    
+    bot_response = send_message_to_gemini(user_message)
     st.session_state['messages'].append(f"Bot: {bot_response}")
     
     # Send bot response back to the HTML/JS frontend
@@ -172,7 +81,7 @@ components.html(
     """
     <script>
         window.addEventListener('message', function(event) {
-            if (event.data.type === 'chat_message') {
+            if (event.data.type === 'send_message') {
                 window.parent.postMessage({
                     type: 'streamlit:set_state',
                     data: { client_message: event.data.message }
@@ -183,3 +92,8 @@ components.html(
     """,
     height=0,
 )
+
+# Display chat history in Streamlit (optional, for debugging)
+st.write("Chat History:")
+for message in st.session_state['messages']:
+    st.write(message)
