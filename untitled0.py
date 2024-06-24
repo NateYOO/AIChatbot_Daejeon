@@ -1,11 +1,8 @@
-pip install PyPDF2
-
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
 import base64
 from io import BytesIO
-import PyPDF2
 
 # Function to send a message to the Gemini 1.5 Pro model
 def send_message_to_gemini(api_key, message, context=""):
@@ -21,13 +18,12 @@ def send_message_to_gemini(api_key, message, context=""):
     response = requests.post(url, headers=headers, json=data)
     return response.json()
 
-# Function to extract text from PDF
+# Function to extract text from PDF (placeholder)
 def extract_text_from_pdf(pdf_file):
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
-    text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text()
-    return text
+    # This is a placeholder function. In a real-world scenario,
+    # you'd need to implement PDF text extraction here.
+    # For now, we'll just return a message.
+    return "PDF text extraction is not implemented in this version."
 
 # API key for the Gemini 1.5 Pro model
 API_KEY = "AIzaSyAbHQK9OtDTG5x5P1L_9YCnj7DwwoKf88w"
@@ -133,7 +129,7 @@ st.sidebar.title("PDF Upload & Chat History")
 uploaded_file = st.sidebar.file_uploader("Upload a PDF file", type="pdf")
 if uploaded_file is not None:
     pdf_text = extract_text_from_pdf(uploaded_file)
-    st.sidebar.success("PDF uploaded and text extracted!")
+    st.sidebar.success("PDF uploaded. Text extraction is not implemented in this version.")
 
 # Initialize session state for messages
 if 'messages' not in st.session_state:
