@@ -3,6 +3,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
+import json
 
 # Function to send a message to the Gemini 1.5 Pro model
 def send_message_to_gemini(api_key, message):
@@ -374,8 +375,8 @@ html_content = """
             <div id="streamlit-app"></div>
         </div>
         <div id="chatbot-input">
-            <input type="text" id="chatbot-input-text" placeholder="메시지를 입력하세요...">
-            <button id="send-message-btn">전송</button>
+            <input type="text" id="chatbot-input-text" placeholder="메시지를 입력하세요..." onkeydown="if(event.key === 'Enter') sendMessage()">
+            <button id="send-message-btn" onclick="sendMessage()">전송</button>
         </div>
     </div>
 
@@ -425,42 +426,22 @@ html_content = """
 """
 
 # Display the HTML content in the Streamlit app
-components.html(html_content, height=800, scrolling=True)
+components.html(html_content, height=1200)
 
-# Endpoint to handle message sending
-def send_message_to_gemini(api_key, message):
-    url = "https://api.gemini.com/v1/chat"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "message": message
-    }
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
+# Add an endpoint to handle the message sending
+st.experimental_set_query_params()
 
-if 'api_key' not in st.session_state:
-    st.session_state['api_key'] = st.text_input("Enter your Gemini API Key:", type="password")
+if st.experimental_get_query_params():
+    from flask import Flask, request, jsonify
 
-if st.session_state['api_key']:
-    API_KEY = st.session_state['api_key']
+    app = Flask(__name__)
 
-    # Add an endpoint to handle the message sending
-    st.experimental_set_query_params()
+    @app.route('/send_message', methods=['POST'])
+    def send_message():
+        data = request.json
+        message = data.get('message')
+        response = send_message_to_gemini(API_KEY, message)
+        return jsonify(response)
 
-    if st.experimental_get_query_params():
-        import json
-        from flask import Flask, request, jsonify
-
-        app = Flask(__name__)
-
-        @app.route('/send_message', methods=['POST'])
-        def send_message():
-            data = request.json
-            message = data.get('message')
-            response = send_message_to_gemini(API_KEY, message)
-            return jsonify(response)
-
-        if __name__ == "__main__":
-            app.run(port=8501)
+    if __name__ == "__main__":
+        app.run(port=8501)
