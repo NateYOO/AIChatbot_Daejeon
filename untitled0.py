@@ -3,7 +3,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
-from flask import Flask, request, jsonify
 
 # Function to send a message to the Gemini 1.5 Pro model
 def send_message_to_gemini(api_key, message):
@@ -434,18 +433,18 @@ html_content = """
 # Display the HTML content in the Streamlit app
 components.html(html_content, height=1500, scrolling=False)
 
-# Add an endpoint to handle the message sending
-if 'flask_server' not in st.session_state:
-    st.session_state['flask_server'] = Flask(__name__)
+# Streamlit form to handle chat messages
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = []
 
-app = st.session_state['flask_server']
+st.title("AI Chatbot")
 
-@app.route('/send_message', methods=['POST'])
-def send_message():
-    data = request.json
-    message = data.get('message')
-    response = send_message_to_gemini(API_KEY, message)
-    return jsonify(response)
+user_input = st.text_input("메시지를 입력하세요...", key="chat_input")
+if st.button("전송"):
+    if user_input:
+        st.session_state['messages'].append(f"User: {user_input}")
+        response = send_message_to_gemini(API_KEY, user_input)
+        st.session_state['messages'].append(f"Bot: {response.get('response', 'No response')}")
 
-if __name__ == "__main__":
-    app.run(port=8501)
+if st.session_state['messages']:
+    st.write("\n".join(st.session_state['messages']))
